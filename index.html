@@ -3,31 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EME NAILS - AI Pro Filter</title>
+    <title>EME NAILS - Fast Filter</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     
     <style>
         :root { --pink: #ff0077; --purple: #7a00ff; }
         body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #050505; color: white; margin: 0; padding-bottom: 20px; }
         
-        .header { padding: 20px; background: linear-gradient(135deg, var(--pink), var(--purple)); margin-bottom: 20px; }
-        h1 { margin: 0; font-size: 2.2rem; letter-spacing: 2px; }
+        .header { padding: 15px; background: linear-gradient(135deg, var(--pink), var(--purple)); margin-bottom: 15px; }
+        h1 { margin: 0; font-size: 2rem; letter-spacing: 2px; }
 
-        .controls { margin: 10px auto; padding: 20px; background: #1a1a1a; border-radius: 15px; max-width: 90%; border: 1px solid #333; }
-        #container { position: relative; display: inline-block; border-radius: 20px; overflow: hidden; border: 2px solid var(--pink); max-width: 95%; }
+        .controls { margin: 10px auto; padding: 15px; background: #1a1a1a; border-radius: 15px; max-width: 90%; border: 1px solid #333; }
+        #container { position: relative; display: inline-block; border-radius: 20px; overflow: hidden; border: 2px solid var(--pink); max-width: 95%; margin-top: 10px;}
         
         video { display: none; }
         canvas { max-width: 100%; height: auto; background: #000; display: block; }
 
-        .status-badge { display: inline-block; padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; margin-top: 15px; background: #333; transition: 0.3s; }
+        .btn-camera { 
+            background: #fff; color: #000; border: none; padding: 10px 20px; 
+            border-radius: 25px; font-weight: bold; cursor: pointer; margin-top: 10px;
+            width: 100%; font-size: 1rem;
+        }
+        .btn-camera:active { background: #ccc; }
+
+        .status-badge { display: inline-block; padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; margin-top: 10px; background: #333; }
         .ready { background: #00ff88; color: #000; font-weight: bold; }
-        .forced { background: #ffaa00; color: #000; font-weight: bold; }
         
-        input[type="file"] { margin-top: 15px; color: #ccc; width: 100%; }
-        .preview-box { width: 60px; height: 80px; border-radius: 30px 30px 10px 10px; border: 2px solid white; margin: 10px auto; display: none; background-size: cover; background-position: center; }
+        input[type="file"] { margin-top: 10px; color: #ccc; width: 100%; }
+        .preview-box { width: 50px; height: 70px; border-radius: 20px 20px 8px 8px; border: 2px solid white; margin: 10px auto; display: none; background-size: cover; background-position: center; }
     </style>
 </head>
 <body>
@@ -37,10 +42,11 @@
 </div>
 
 <div class="controls">
-    <strong>1. Sube tu diseño (Foto o Patrón)</strong><br>
+    <strong>Sube tu diseño:</strong>
     <input type="file" id="nailUpload" accept="image/*">
     <div id="status" class="status-badge">Esperando imagen...</div>
     <div id="texturePreview" class="preview-box"></div>
+    <button id="switchCamera" class="btn-camera">🔄 Cambiar a Cámara Trasera</button>
 </div>
 
 <div id="container">
@@ -58,93 +64,85 @@
     const cropCtx = cropCanvas.getContext('2d');
     const statusDiv = document.getElementById('status');
     const previewBox = document.getElementById('texturePreview');
+    const switchBtn = document.getElementById('switchCamera');
 
     let nailTexture = null;
+    let cameraMode = null; // Controla la cámara de MediaPipe
+    let isFrontCamera = true;
+    let processingPhoto = false;
 
-    // IA Principal configurada para la cámara
+    // Inicializamos la IA con una configuración constante (¡Esto evita el lag!)
     const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 
-    // --- PROCESAMIENTO ULTRA-INTELIGENTE DE LA FOTO ---
+    // --- MANEJO RÁPIDO DE LA IMAGEN ---
     document.getElementById('nailUpload').onchange = async (e) => {
-        statusDiv.innerText = "🔍 Analizando profundidad de la foto...";
-        statusDiv.className = "status-badge";
-        previewBox.style.display = "none";
-        
         const file = e.target.files[0];
         if(!file) return;
+        
+        statusDiv.innerText = "⚡ Procesando diseño...";
+        statusDiv.className = "status-badge";
+        previewBox.style.display = "none";
+        processingPhoto = true; // Pausa el filtro de la cámara un momento
         
         const img = new Image();
         img.src = URL.createObjectURL(file);
         
         img.onload = async () => {
-            // Modo "Cazador": Sensibilidad casi a cero para forzar a la IA a buscar manos en fotos difíciles
-            hands.setOptions({ modelComplexity: 2, minDetectionConfidence: 0.1 });
-            
+            // Mandamos la imagen a la IA para una lectura rápida
             await hands.send({image: img});
             
-            const onPhotoResult = (results) => {
+            hands.onResults((results) => {
+                if(!processingPhoto) return; // Evita que se crucen datos con la cámara en vivo
+                
                 cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
                 
-                // ESCENARIO A: La IA logró encontrar un dedo en la foto
                 if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                    const tip = results.multiHandLandmarks[0][8]; // Dedo índice
+                    // La IA detectó una mano en la foto al instante
+                    const tip = results.multiHandLandmarks[0][8]; 
                     const boxW = img.width * 0.15;
                     const boxH = boxW * 1.5;
-                    
-                    cropCtx.drawImage(
-                        img, 
-                        (tip.x * img.width) - (boxW/2), (tip.y * img.height) - (boxH/1.5), boxW, boxH, 
-                        0, 0, 150, 200
-                    );
-                    statusDiv.innerText = "✅ Diseño extraído con IA";
-                    statusDiv.className = "status-badge ready";
-                } 
-                // ESCENARIO B (Fallback): La IA no entiende la foto (Ej. uñas muy largas o mucho zoom)
-                else {
-                    // Extraemos el centro exacto de la foto, que es donde el usuario suele enfocar la uña
+                    cropCtx.drawImage(img, (tip.x * img.width) - (boxW/2), (tip.y * img.height) - (boxH/1.5), boxW, boxH, 0, 0, 150, 200);
+                    statusDiv.innerText = "✅ Extracción exitosa";
+                } else {
+                    // Fallback ultrarrápido: Si la foto es compleja, toma el centro al instante
                     const boxW = Math.min(img.width, img.height) * 0.4;
                     const boxH = boxW * 1.5;
-                    cropCtx.drawImage(
-                        img, 
-                        (img.width/2) - (boxW/2), (img.height/2) - (boxH/2), boxW, boxH, 
-                        0, 0, 150, 200
-                    );
-                    statusDiv.innerText = "⚠️ Extracción Forzada (Centro)";
-                    statusDiv.className = "status-badge forced";
+                    cropCtx.drawImage(img, (img.width/2) - (boxW/2), (img.height/2) - (boxH/2), boxW, boxH, 0, 0, 150, 200);
+                    statusDiv.innerText = "✅ Diseño centrado listo";
                 }
 
-                // Guardar la textura generada
+                statusDiv.className = "status-badge ready";
                 nailTexture = new Image();
                 nailTexture.src = cropCanvas.toDataURL();
-                
-                // Mostrar un preview de lo que la IA recortó
                 previewBox.style.backgroundImage = `url(${nailTexture.src})`;
                 previewBox.style.display = "block";
 
-                // Devolver la IA al modo cámara normal
-                hands.setOptions({ modelComplexity: 1, minDetectionConfidence: 0.6 });
-                hands.onResults(onLiveResults);
-            };
-            
-            hands.onResults(onPhotoResult);
+                processingPhoto = false; // Reactiva el filtro en vivo
+                hands.onResults(onLiveResults); // Devolvemos el control a la cámara
+            });
         };
     };
 
-    // --- APLICACIÓN EN LA CÁMARA (TIEMPO REAL) ---
+    // --- FILTRO EN TIEMPO REAL ---
     function onLiveResults(results) {
+        if(processingPhoto) return; // Si está cargando una foto, no dibujes las manos
+
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         
-        // Modo espejo
-        canvasCtx.translate(canvasElement.width, 0);
-        canvasCtx.scale(-1, 1);
+        // Si es cámara frontal, hacemos efecto espejo. Si es trasera, la dejamos normal.
+        if (isFrontCamera) {
+            canvasCtx.translate(canvasElement.width, 0);
+            canvasCtx.scale(-1, 1);
+        }
+        
         canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
         if (results.multiHandLandmarks && nailTexture) {
             for (const landmarks of results.multiHandLandmarks) {
-                const tips = [4, 8, 12, 16, 20]; // Puntas
-                const joints = [3, 7, 11, 15, 19]; // Nudillos superiores
+                const tips = [4, 8, 12, 16, 20];
+                const joints = [3, 7, 11, 15, 19];
 
                 tips.forEach((tipIdx, i) => {
                     const tip = landmarks[tipIdx];
@@ -155,28 +153,27 @@
                     const jX = joint.x * canvasElement.width;
                     const jY = joint.y * canvasElement.height;
 
-                    // Rotación exacta del dedo
-                    const angle = Math.atan2(y - jY, x - jX) + Math.PI/2;
+                    // Ajuste de rotación para cámara trasera (los ángulos se invierten si no hay espejo)
+                    let angle = Math.atan2(y - jY, x - jX) + Math.PI/2;
+                    if (!isFrontCamera) {
+                        angle = Math.atan2(y - jY, x - jX) + Math.PI/2; 
+                    }
                     
-                    // Escala dinámica basada en qué tan cerca está la mano
                     const dist = Math.hypot(x - jX, y - jY);
-                    const nailW = dist * 1.2; // Ancho de la uña
-                    const nailH = nailW * 1.8; // Largo de la uña (efecto acrílico)
+                    const nailW = dist * 1.3; 
+                    const nailH = nailW * 1.8; 
 
                     canvasCtx.save();
                     canvasCtx.translate(x, y);
                     canvasCtx.rotate(angle);
                     
-                    // CREAR MÁSCARA EN FORMA DE UÑA (Almendra)
+                    // Corte en forma de uña
                     canvasCtx.beginPath();
-                    // Dibuja un óvalo que simula la forma de una uña
                     canvasCtx.ellipse(0, -nailH/4, nailW/2, nailH/2, 0, 0, 2 * Math.PI);
-                    canvasCtx.clip(); // Corta la imagen para que no sea un cuadrado
-
-                    // Dibujar la textura dentro del óvalo
+                    canvasCtx.clip(); 
                     canvasCtx.drawImage(nailTexture, -nailW/2, -nailH*0.75, nailW, nailH*1.5);
                     
-                    // Efecto de brillo (Glossy)
+                    // Brillo
                     const gradient = canvasCtx.createLinearGradient(-nailW/2, -nailH, nailW/2, nailH);
                     gradient.addColorStop(0, "rgba(255,255,255,0.4)");
                     gradient.addColorStop(0.5, "rgba(255,255,255,0)");
@@ -190,13 +187,28 @@
         canvasCtx.restore();
     }
 
-    hands.onResults(onLiveResults);
+    // --- INICIADOR DE CÁMARA Y CAMBIO FRONTAL/TRASERA ---
+    function startCamera() {
+        if (cameraMode) { cameraMode.stop(); } // Detiene la cámara anterior
+        
+        hands.onResults(onLiveResults);
+        
+        cameraMode = new Camera(videoElement, {
+            onFrame: async () => { if(!processingPhoto) await hands.send({image: videoElement}); },
+            width: 640, height: 480,
+            facingMode: isFrontCamera ? 'user' : 'environment' // user = Frontal, environment = Trasera
+        });
+        cameraMode.start();
+    }
 
-    const camera = new Camera(videoElement, {
-        onFrame: async () => { await hands.send({image: videoElement}); },
-        width: 640, height: 480
+    switchBtn.addEventListener('click', () => {
+        isFrontCamera = !isFrontCamera;
+        switchBtn.innerText = isFrontCamera ? "🔄 Cambiar a Cámara Trasera" : "🔄 Cambiar a Cámara Frontal";
+        startCamera();
     });
-    camera.start();
+
+    // Encender al iniciar
+    startCamera();
 </script>
 
 </body>
