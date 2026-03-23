@@ -3,66 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EME NAILS - Studio Pro AI</title>
+    <title>EME NAILS Studio Elite</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
-        :root { --pink: #ff0077; --purple: #7a00ff; --dark: #050505; }
+        :root { --pink: #ff0077; --dark: #080808; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: white; margin: 0; overflow: hidden; }
         
-        /* Panel Superior */
-        .header-ui {
-            position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-            padding: 15px; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
-            display: flex; justify-content: space-between; align-items: center;
-        }
+        .header { position: absolute; top: 0; width: 100%; z-index: 10; padding: 10px; display: flex; justify-content: space-between; background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent); }
+        
+        #container { position: relative; width: 100vw; height: 100vh; }
+        video, canvas { position: absolute; width: 100%; height: 100%; object-fit: cover; }
 
-        /* Contenedor de Cámara */
-        #container { position: relative; width: 100vw; height: 100vh; background: #000; }
-        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
-
-        /* Panel de Diseño Inferior */
         .studio-panel {
-            position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
-            background: rgba(10, 10, 10, 0.95); padding: 20px;
-            border-top: 3px solid var(--pink); border-radius: 25px 25px 0 0;
-            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
-            display: flex; flex-direction: column; gap: 15px;
+            position: absolute; bottom: 0; width: 100%; z-index: 10;
+            background: rgba(15, 15, 15, 0.98); padding: 15px;
+            border-top: 2px solid var(--pink); border-radius: 20px 20px 0 0;
+            display: flex; flex-direction: column; gap: 12px; box-sizing: border-box;
         }
 
-        .scroll-row {
-            display: flex; overflow-x: auto; gap: 10px; padding-bottom: 5px;
-            scrollbar-width: none;
-        }
+        .scroll-row { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0; scrollbar-width: none; }
         .scroll-row::-webkit-scrollbar { display: none; }
 
-        .chip {
-            background: #222; border: 1px solid #444; color: white;
-            padding: 8px 18px; border-radius: 20px; white-space: nowrap;
-            font-size: 0.85rem; cursor: pointer; transition: 0.2s;
-        }
-        .chip.active { background: var(--pink); border-color: var(--pink); font-weight: bold; }
+        .chip { background: #222; border: 1px solid #444; padding: 8px 15px; border-radius: 15px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
+        .chip.active { background: var(--pink); border-color: var(--pink); }
 
-        .color-dot {
-            width: 35px; height: 35px; border-radius: 50%; border: 2px solid #fff;
-            flex-shrink: 0; cursor: pointer;
-        }
+        .finger-selector { display: flex; justify-content: center; gap: 5px; margin-bottom: 5px; }
+        .finger-btn { width: 35px; height: 35px; border-radius: 50%; border: 1px solid #555; background: #111; color: white; font-size: 0.7rem; cursor: pointer; }
+        .finger-btn.selected { background: #00ff88; color: black; border-color: #00ff88; }
 
-        .btn-action {
-            background: white; color: black; border: none; padding: 12px;
-            border-radius: 15px; font-weight: bold; flex: 1;
-        }
-        .btn-flip { background: rgba(255,255,255,0.2); color: white; width: 50px; }
+        .btn-pdf { background: white; color: black; border: none; padding: 12px; border-radius: 10px; font-weight: bold; width: 100%; }
     </style>
 </head>
 <body>
 
-<div class="header-ui">
-    <h2 style="margin:0; font-size: 1.2rem; letter-spacing: 2px;">EME NAILS</h2>
-    <button class="btn-action btn-flip" onclick="toggleCamera()">🔄</button>
+<div class="header">
+    <span style="letter-spacing:2px; font-weight:bold;">EME NAILS PRO</span>
+    <button onclick="toggleCamera()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">🔄</button>
 </div>
 
 <div id="container">
@@ -71,29 +51,33 @@
 </div>
 
 <div class="studio-panel">
+    <div class="finger-selector" id="fingerSelector">
+        <button class="finger-btn selected" onclick="selectFinger('all')">Todos</button>
+        <button class="finger-btn" onclick="selectFinger(0)">P</button>
+        <button class="finger-btn" onclick="selectFinger(1)">I</button>
+        <button class="finger-btn" onclick="selectFinger(2)">M</button>
+        <button class="finger-btn" onclick="selectFinger(3)">A</button>
+        <button class="finger-btn" onclick="selectFinger(4)">m</button>
+    </div>
+
     <div class="scroll-row" id="shapeRow">
-        <div class="chip active" onclick="setShape('natural', this)">Natural</div>
-        <div class="chip" onclick="setShape('almond', this)">Almendra</div>
-        <div class="chip" onclick="setShape('square', this)">Cuadrada</div>
+        <div class="chip active" onclick="setShape('almond', this)">Almendra</div>
         <div class="chip" onclick="setShape('coffin', this)">Coffin</div>
         <div class="chip" onclick="setShape('stiletto', this)">Stiletto</div>
-        <div class="chip" onclick="setShape('square-long', this)">XL Square</div>
+        <div class="chip" onclick="setShape('square', this)">Cuadrada</div>
     </div>
 
     <div class="scroll-row">
-        <input type="color" id="customColor" style="width:35px; height:35px; border:none; background:none;">
-        <div class="color-dot" style="background: #ff0077;" onclick="setColor('#ff0077')"></div>
-        <div class="color-dot" style="background: #7a00ff;" onclick="setColor('#7a00ff')"></div>
-        <div class="color-dot" style="background: #00f2ff;" onclick="setColor('#00f2ff')"></div>
-        <div class="color-dot" style="background: #ffcf00;" onclick="setColor('#ffcf00')"></div>
-        <div class="color-dot" style="background: #ffffff;" onclick="setColor('#ffffff')"></div>
-        <div class="color-dot" style="background: #000000;" onclick="setColor('#000000')"></div>
-        <div class="color-dot" style="background: #ff5e00;" onclick="setColor('#ff5e00')"></div>
+        <input type="color" id="colorPicker" value="#ff0077" style="width:40px; height:40px; border:none; background:none;">
+        <div class="chip" onclick="setSticker('🌸')">🌸</div>
+        <div class="chip" onclick="setSticker('⭐')">⭐</div>
+        <div class="chip" onclick="setSticker('💎')">💎</div>
+        <div class="chip" onclick="setSticker('✨')">✨</div>
+        <div class="chip" onclick="setSticker('🔥')">🔥</div>
+        <div class="chip" onclick="setSticker('none')">Limpiar</div>
     </div>
 
-    <div style="display:flex; gap:10px;">
-        <button class="btn-action" style="background: #00ff88;" onclick="generatePDF()">📥 Descargar PDF</button>
-    </div>
+    <button class="btn-pdf" onclick="generatePDF()">📥 DESCARGAR DISEÑO PDF</button>
 </div>
 
 <script>
@@ -101,132 +85,146 @@
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
     
-    let currentColor = "#ff0077";
-    let currentShape = "natural";
+    // Estado del diseño por dedo: [Pulgar, Índice, Medio, Anular, Meñique]
+    let nailState = Array(5).fill().map(() => ({ color: "#ff0077", sticker: "none", shape: "almond" }));
+    let selectedFinger = 'all'; // 'all' o índice 0-4
     let isFrontCamera = true;
     let cameraInstance = null;
 
-    // IA Optimizada para detección cercana
     const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-    hands.setOptions({ 
-        maxNumHands: 1, 
-        modelComplexity: 1, // Balance entre velocidad y precisión
-        minDetectionConfidence: 0.4, // Más sensible para detectar dedos solos
-        minTrackingConfidence: 0.4 
-    });
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.4, minTrackingConfidence: 0.4 });
+
+    function selectFinger(index) {
+        selectedFinger = index;
+        document.querySelectorAll('.finger-btn').forEach((btn, i) => {
+            btn.classList.toggle('selected', index === 'all' ? i === 0 : i === (index + 1));
+        });
+    }
 
     function setShape(shape, el) {
-        currentShape = shape;
-        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        applyToSelected('shape', shape);
+        document.querySelectorAll('#shapeRow .chip').forEach(c => c.classList.remove('active'));
         el.classList.add('active');
     }
 
-    function setColor(color) { currentColor = color; }
-    document.getElementById('customColor').oninput = (e) => currentColor = e.target.value;
+    function setSticker(sticker) { applyToSelected('sticker', sticker); }
+    document.getElementById('colorPicker').oninput = (e) => applyToSelected('color', e.target.value);
+
+    function applyToSelected(prop, value) {
+        if (selectedFinger === 'all') {
+            nailState.forEach(n => n[prop] = value);
+        } else {
+            nailState[selectedFinger][prop] = value;
+        }
+    }
+
+    function drawNail(ctx, x, y, angle, dist, state) {
+        let nW = dist * 0.85;
+        let nH = state.shape === 'stiletto' || state.shape === 'coffin' ? nW * 2.6 : nW * 1.7;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+
+        // 1. Base con degradado de volumen (Realismo)
+        const nailGrad = ctx.createLinearGradient(-nW/2, 0, nW/2, 0);
+        nailGrad.addColorStop(0, adjustColor(state.color, -30)); // Sombra lateral
+        nailGrad.addColorStop(0.5, state.color);
+        nailGrad.addColorStop(1, adjustColor(state.color, -30));
+        
+        ctx.fillStyle = nailGrad;
+        ctx.beginPath();
+        if(state.shape === 'almond') {
+            ctx.ellipse(0, -nH/4, nW/2, nH/2, 0, 0, 2 * Math.PI);
+        } else if(state.shape === 'coffin') {
+            ctx.moveTo(-nW/2, 0); ctx.lineTo(-nW/3, -nH); ctx.lineTo(nW/3, -nH); ctx.lineTo(nW/2, 0); ctx.closePath();
+        } else if(state.shape === 'stiletto') {
+            ctx.moveTo(-nW/2, 0); ctx.lineTo(0, -nH); ctx.lineTo(nW/2, 0); ctx.closePath();
+        } else {
+            ctx.roundRect(-nW/2, -nH, nW, nH, [4, 4, 0, 0]);
+        }
+        ctx.fill();
+
+        // 2. Brillo Glossy (Reflejo de luz)
+        const shine = ctx.createLinearGradient(0, -nH, 0, 0);
+        shine.addColorStop(0, "rgba(255,255,255,0.4)");
+        shine.addColorStop(0.4, "transparent");
+        ctx.fillStyle = shine;
+        ctx.fill();
+
+        // 3. Sticker
+        if(state.sticker !== 'none') {
+            ctx.font = `${nW/1.8}px Arial`;
+            ctx.textAlign = "center";
+            ctx.fillText(state.sticker, 0, -nH/2.5);
+        }
+        ctx.restore();
+    }
+
+    function adjustColor(hex, amt) {
+        var usePound = true;
+        if (hex[0] == "#") { hex = hex.slice(1); usePound = true; }
+        var num = parseInt(hex,16);
+        var r = (num >> 16) + amt;
+        if (r > 255) r = 255; else if  (r < 0) r = 0;
+        var b = ((num >> 8) & 0x00FF) + amt;
+        if (b > 255) b = 255; else if  (b < 0) b = 0;
+        var g = (num & 0x0000FF) + amt;
+        if (g > 255) g = 255; else if (g < 0) g = 0;
+        return (usePound?"#":"") + (g | (b << 8) | (r << 16)).toString(16);
+    }
 
     function onResults(results) {
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        
-        // Efecto espejo solo en cámara frontal
-        if (isFrontCamera) {
-            canvasCtx.translate(canvasElement.width, 0);
-            canvasCtx.scale(-1, 1);
-        }
+        if (isFrontCamera) { canvasCtx.translate(canvasElement.width, 0); canvasCtx.scale(-1, 1); }
         canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
         if (results.multiHandLandmarks) {
             for (const landmarks of results.multiHandLandmarks) {
-                const tips = [4, 8, 12, 16, 20];
-                const joints = [3, 7, 11, 15, 19];
+                const fingerIndices = [4, 8, 12, 16, 20];
+                const jointIndices = [3, 7, 11, 15, 19];
 
-                tips.forEach((tipIdx, i) => {
+                fingerIndices.forEach((tipIdx, i) => {
                     const tip = landmarks[tipIdx];
-                    const joint = landmarks[joints[i]];
+                    const joint = landmarks[jointIndices[i]];
                     const x = tip.x * canvasElement.width;
                     const y = tip.y * canvasElement.height;
                     const jX = joint.x * canvasElement.width;
                     const jY = joint.y * canvasElement.height;
-
                     const angle = Math.atan2(y - jY, x - jX) + Math.PI/2;
                     const dist = Math.hypot(x - jX, y - jY);
-                    
-                    let nW = dist * 0.85;
-                    let nH = nW * 1.5;
 
-                    // Ajuste de largo según forma
-                    if(currentShape === 'stiletto' || currentShape === 'coffin') nH = nW * 2.8;
-                    if(currentShape === 'square-long') nH = nW * 3.2;
-
-                    canvasCtx.save();
-                    canvasCtx.translate(x, y);
-                    canvasCtx.rotate(angle);
-
-                    // Sombreado y Color
-                    canvasCtx.fillStyle = currentColor;
-                    canvasCtx.shadowBlur = 15;
-                    canvasCtx.shadowColor = "rgba(0,0,0,0.4)";
-                    
-                    canvasCtx.beginPath();
-                    if(currentShape === 'natural' || currentShape === 'almond') {
-                        canvasCtx.ellipse(0, -nH/4, nW/2, nH/2, 0, 0, 2 * Math.PI);
-                    } else if(currentShape === 'square' || currentShape === 'square-long') {
-                        canvasCtx.roundRect(-nW/2, -nH, nW, nH, [5, 5, 0, 0]);
-                    } else if(currentShape === 'coffin') {
-                        canvasCtx.moveTo(-nW/2, 0);
-                        canvasCtx.lineTo(-nW/3, -nH);
-                        canvasCtx.lineTo(nW/3, -nH);
-                        canvasCtx.lineTo(nW/2, 0);
-                    } else if(currentShape === 'stiletto') {
-                        canvasCtx.moveTo(-nW/2, 0);
-                        canvasCtx.lineTo(0, -nH);
-                        canvasCtx.lineTo(nW/2, 0);
-                    }
-                    canvasCtx.fill();
-
-                    // Brillo Glossy
-                    const g = canvasCtx.createLinearGradient(-nW/2, 0, nW/2, 0);
-                    g.addColorStop(0, "rgba(255,255,255,0.3)");
-                    g.addColorStop(0.5, "transparent");
-                    canvasCtx.fillStyle = g;
-                    canvasCtx.fill();
-
-                    canvasCtx.restore();
+                    drawNail(canvasCtx, x, y, angle, dist, nailState[i]);
                 });
             }
         }
         canvasCtx.restore();
     }
 
-    function toggleCamera() {
-        isFrontCamera = !isFrontCamera;
-        startCamera();
-    }
-
     function startCamera() {
         if (cameraInstance) cameraInstance.stop();
         cameraInstance = new Camera(videoElement, {
             onFrame: async () => { await hands.send({image: videoElement}); },
-            width: 640, height: 480,
+            width: 1280, height: 720,
             facingMode: isFrontCamera ? 'user' : 'environment'
         });
         cameraInstance.start();
     }
 
+    function toggleCamera() { isFrontCamera = !isFrontCamera; startCamera(); }
+
     async function generatePDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.setFont("helvetica", "bold");
-        doc.text("EME NAILS - ORDEN DE DISEÑO", 20, 20);
-        doc.setFont("helvetica", "normal");
-        doc.text(`Color: ${currentColor}`, 20, 40);
-        doc.text(`Forma: ${currentShape.toUpperCase()}`, 20, 50);
-        doc.rect(20, 70, 170, 50);
-        doc.text("Nota para manicurista: Aplicar esmalte en gel con acabado", 25, 85);
-        doc.text("brillante siguiendo la estructura anatómica mostrada.", 25, 95);
-        doc.save("eme-nails-pedido.pdf");
+        doc.setFontSize(20); doc.text("EME NAILS STUDIO - PEDIDO", 20, 20);
+        nailState.forEach((n, i) => {
+            let name = ["Pulgar", "Índice", "Medio", "Anular", "Meñique"][i];
+            doc.setFontSize(12); doc.text(`${name}: Color ${n.color}, Forma ${n.shape}, Arte ${n.sticker}`, 20, 40 + (i * 10));
+        });
+        doc.save("diseno-personalizado.pdf");
     }
 
     hands.onResults(onResults);
