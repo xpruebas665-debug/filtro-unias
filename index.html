@@ -2,30 +2,29 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>IA Nail Filter - Vercel</title>
+    <title>IA Nail Filter Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; }
-        .header { padding: 20px; background: #ff0077; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        #container { position: relative; margin-top: 20px; display: inline-block; }
-        video { display: none; } /* Ocultamos el video crudo */
-        canvas { border: 4px solid #ff0077; border-radius: 20px; max-width: 95vw; background: #000; }
-        .controls { margin: 20px; padding: 15px; background: #333; border-radius: 10px; display: inline-block; }
-        input[type="file"] { color: white; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #121212; color: white; margin: 0; overflow-x: hidden; }
+        .header { padding: 15px; background: linear-gradient(90deg, #ff0077, #aa00ff); }
+        #container { position: relative; margin: 20px auto; display: inline-block; line-height: 0; }
+        video { display: none; }
+        canvas { border: 3px solid #ff0077; border-radius: 15px; max-width: 95vw; box-shadow: 0 0 20px rgba(255, 0, 119, 0.5); }
+        .controls { margin: 20px; padding: 20px; background: #222; border-radius: 15px; display: inline-block; }
+        #status { color: #00ffcc; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1>💅 Nail Art AI Preview</h1>
-</div>
+<div class="header"><h1>💅 Nail AI Master</h1></div>
 
 <div class="controls">
-    <label>1. Sube tu diseño de uña: </label>
+    <p>1. Sube una foto de un diseño (que se vea la mano)</p>
     <input type="file" id="nailUpload" accept="image/*">
+    <div id="status">Esperando diseño...</div>
 </div>
 
 <div id="container">
@@ -33,57 +32,111 @@
     <canvas id="output_canvas" width="640" height="480"></canvas>
 </div>
 
+<canvas id="crop_canvas" width="100" height="100" style="display:none;"></canvas>
+
 <script>
     const videoElement = document.getElementById('input_video');
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
-    const nailInput = document.getElementById('nailUpload');
+    const cropCanvas = document.getElementById('crop_canvas');
+    const cropCtx = cropCanvas.getContext('2d');
+    const status = document.getElementById('status');
 
-    let nailImage = new Image();
-    nailInput.onchange = (e) => {
-        const reader = new FileReader();
-        reader.onload = (event) => { nailImage.src = event.target.result; };
-        reader.readAsDataURL(e.target.files[0]);
+    let extractedNailTexture = null;
+
+    // Configuración de la IA
+    const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
+
+    // FUNCIÓN PARA RECORTAR LA UÑA DE LA FOTO SUBIDA
+    document.getElementById('nailUpload').onchange = async (e) => {
+        status.innerText = "Escaneando diseño...";
+        const file = e.target.files[0];
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        
+        img.onload = async () => {
+            // Usamos la IA para encontrar la uña en la foto subida
+            await hands.send({image: img});
+            
+            // Guardamos el resultado del recorte
+            hands.onResults((results) => {
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    const landmarks = results.multiHandLandmarks[0];
+                    const indexTip = landmarks[8]; // Punta del índice de la foto subida
+
+                    // Recortamos un área pequeña alrededor de la uña
+                    const size = img.width * 0.08; 
+                    cropCtx.clearRect(0, 0, 100, 100);
+                    cropCtx.drawImage(
+                        img, 
+                        indexTip.x * img.width - (size/2), indexTip.y * img.height - (size/2), size, size, 
+                        0, 0, 100, 100
+                    );
+                    
+                    extractedNailTexture = new Image();
+                    extractedNailTexture.src = cropCanvas.toDataURL();
+                    status.innerText = "✅ ¡Diseño aplicado!";
+                } else {
+                    status.innerText = "❌ No detecté una mano en la foto. Intenta otra.";
+                }
+                
+                // Re-configuramos la IA para volver al modo cámara
+                hands.onResults(onLiveResults);
+            });
+        };
     };
 
-    function onResults(results) {
+    // FUNCIÓN PARA EL FILTRO EN TIEMPO REAL
+    function onLiveResults(results) {
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        
+        // Espejo para la cámara
+        canvasCtx.translate(canvasElement.width, 0);
+        canvasCtx.scale(-1, 1);
+        
         canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-        if (results.multiHandLandmarks) {
+        if (results.multiHandLandmarks && extractedNailTexture) {
             for (const landmarks of results.multiHandLandmarks) {
-                // Puntos de las puntas de los dedos (Índice, Medio, Anular, Meñique, Pulgar)
-                const tips = [4, 8, 12, 16, 20];
-                
-                tips.forEach(index => {
-                    const point = landmarks[index];
-                    if(nailImage.complete && nailImage.src) {
-                        // Dibujamos el diseño sobre la punta detectada
-                        const size = 30; // Tamaño de la uña
-                        canvasCtx.drawImage(
-                            nailImage, 
-                            (1 - point.x) * canvasElement.width - (size/2), 
-                            point.y * canvasElement.height - (size/2), 
-                            size, size * 1.5
-                        );
-                    }
+                // Puntos de las puntas: Pulgar(4), Índice(8), Medio(12), Anular(16), Meñique(20)
+                const fingerTips = [4, 8, 12, 16, 20];
+                const fingerBases = [3, 7, 11, 15, 19]; // Puntos justo debajo para calcular rotación
+
+                fingerTips.forEach((tipIndex, i) => {
+                    const tip = landmarks[tipIndex];
+                    const base = landmarks[fingerBases[i]];
+
+                    // Calcular ángulo del dedo para rotar la uña
+                    const angle = Math.atan2(tip.y - base.y, tip.x - base.x) + Math.PI/2;
+                    
+                    const x = tip.x * canvasElement.width;
+                    const y = tip.y * canvasElement.height;
+
+                    canvasCtx.save();
+                    canvasCtx.translate(x, y);
+                    canvasCtx.rotate(angle);
+                    
+                    // Dibujamos el recorte de la uña
+                    const nWidth = 22; 
+                    const nHeight = 32;
+                    canvasCtx.drawImage(extractedNailTexture, -nWidth/2, -nHeight/2, nWidth, nHeight);
+                    
+                    canvasCtx.restore();
                 });
             }
         }
         canvasCtx.restore();
     }
 
-    const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-    hands.onResults(onResults);
-
+    // Iniciar cámara
+    hands.onResults(onLiveResults);
     const camera = new Camera(videoElement, {
         onFrame: async () => { await hands.send({image: videoElement}); },
         width: 640, height: 480
     });
     camera.start();
 </script>
-
 </body>
 </html>
