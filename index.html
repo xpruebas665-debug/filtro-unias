@@ -3,49 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EME NAILS - Fix Edition</title>
+    <title>EME NAILS - Filtro Profesional de IA</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     
     <style>
         :root { --pink: #ff0077; --purple: #7a00ff; --dark: #0a0a0a; }
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--dark); color: white; margin: 0; }
-        .header { padding: 15px; background: linear-gradient(135deg, var(--pink), var(--purple)); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: var(--dark); color: white; margin: 0; padding: 0; }
+        .header { padding: 25px; background: linear-gradient(135deg, var(--pink), var(--purple)); box-shadow: 0 4px 15px rgba(255, 0, 119, 0.5); }
+        h1 { margin: 0; font-size: 2.5em; text-transform: uppercase; letter-spacing: 2px; }
+
+        /* Estilos de las vistas por pasos */
         #step1, #step2 { padding: 20px; max-width: 500px; margin: 0 auto; }
         #step2 { display: none; }
-        .card { background: #1a1a1a; padding: 25px; border-radius: 20px; border: 1px solid #333; }
-        .btn-main { background: white; color: black; border: none; padding: 15px; border-radius: 30px; font-weight: bold; width: 100%; font-size: 1.1rem; margin-top: 20px; cursor: pointer; }
-        #container { position: relative; border-radius: 20px; overflow: hidden; border: 2px solid var(--pink); margin-top: 15px;}
-        video { display: none; }
+
+        .card { background: #1a1a1a; padding: 25px; border-radius: 20px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        .btn-main { 
+            background: white; color: black; border: none; padding: 15px 30px; 
+            border-radius: 30px; font-weight: bold; cursor: pointer; width: 100%; 
+            font-size: 1.1rem; margin-top: 20px; transition: 0.3s;
+        }
+        .btn-main:active { transform: scale(0.95); background: #ff0077; color: white; }
+
+        #container { position: relative; display: inline-block; border-radius: 20px; overflow: hidden; border: 3px solid var(--pink); width: 100%; margin-top: 15px;}
+        video { display: none; } /* Ocultamos el video crudo */
         canvas { width: 100%; height: auto; background: #000; display: block; }
-        #loader { display: none; color: #ffeb3b; font-weight: bold; margin-top: 15px; padding: 10px; border: 1px dashed #ffeb3b; }
-        .preview-circle { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--pink); margin: 15px auto; background-size: cover; background-position: center; }
+
+        .preview-circle { 
+            width: 80px; height: 100px; border-radius: 40px 40px 10px 10px; border: 3px solid var(--pink); 
+            margin: 20px auto; background-size: cover; background-position: center; 
+        }
+
+        #loader { display: none; margin-top: 10px; color: var(--pink); font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="header"><h1>EME NAILS</h1></div>
+<div class="header">
+    <h1>EME NAILS</h1>
+</div>
 
 <div id="step1">
     <div class="card">
-        <h3>💅 Paso 1: Sube tu diseño</h3>
+        <h3>💅 Paso 1: Sube tu diseño (Glow Studio u otro)</h3>
+        <p>Selecciona una foto de uñas o un patrón que te guste. La IA extraerá el mejor diseño.</p>
         <input type="file" id="nailUpload" accept="image/jpeg,image/png">
-        <div id="loader">⚡ Procesando... Por favor espera.</div>
+        <div id="loader">⚡ Procesando con IA de Alta Fidelidad...</div>
         <button id="goStep2" class="btn-main" style="display: none;">Ver en mis manos →</button>
     </div>
 </div>
 
 <div id="step2">
     <div class="preview-circle" id="miniPreview"></div>
-    <button id="switchCamera" class="btn-main" style="margin: 0 0 15px 0; padding: 10px;">🔄 Cambiar Cámara</button>
+    <button id="switchCamera" class="btn-main" style="margin-top: 0; margin-bottom: 15px; padding: 10px;">🔄 Cambiar Cámara</button>
+    
     <div id="container">
         <video id="input_video"></video>
         <canvas id="output_canvas" width="640" height="480"></canvas>
     </div>
+    
+    <button onclick="location.reload()" class="btn-main" style="background: transparent; color: white; border: 1px solid #444;">Subir otro diseño</button>
 </div>
 
-<canvas id="crop_canvas" width="150" height="200" style="display:none;"></canvas>
+<canvas id="crop_canvas" width="128" height="192" style="display:none;"></canvas>
 
 <script>
     const videoElement = document.getElementById('input_video');
@@ -53,117 +76,129 @@
     const canvasCtx = canvasElement.getContext('2d');
     const cropCanvas = document.getElementById('crop_canvas');
     const cropCtx = cropCanvas.getContext('2d');
+    
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
     const loader = document.getElementById('loader');
     const btnGo = document.getElementById('goStep2');
     const miniPreview = document.getElementById('miniPreview');
 
-    let nailTexture = null;
-    let cameraInstance = null;
+    let nailTextureImage = null;
     let isFrontCamera = true;
+    let cameraInstance = null;
 
-    // Configuración de IA
+    // IA configurada para máxima velocidad y balance de precisión
     const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5 });
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 
-    // --- PROCESAMIENTO CON TIEMPO LÍMITE (TIMEOUT) ---
+    // --- PROCESAR FOTO (PASO 1): EXTRACCIÓN INTELIGENTE DE TEXTURA ---
     document.getElementById('nailUpload').onchange = async (e) => {
         const file = e.target.files[0];
         if(!file) return;
         
         loader.style.display = "block";
         btnGo.style.display = "none";
-
         const img = new Image();
         img.src = URL.createObjectURL(file);
         
         img.onload = async () => {
-            let processed = false;
-
-            // 1. Ponemos un temporizador de 3 segundos
-            const timeout = setTimeout(() => {
-                if (!processed) {
-                    console.log("IA tardó demasiado, usando recorte manual...");
-                    forceCrop(img);
-                }
-            }, 3000);
-
-            // 2. Intentamos usar la IA
-            try {
-                await hands.send({image: img});
-            } catch (err) {
-                console.error("Error en IA:", err);
-                forceCrop(img);
-            }
-
+            // Analizar la foto con la IA para encontrar la uña
+            await hands.send({image: img});
+            
             hands.onResults((results) => {
-                if (processed) return;
-                processed = true;
-                clearTimeout(timeout);
-
+                cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+                
+                // Intenta detectar una uña clara para usar como plantilla de textura
                 if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                    const tip = results.multiHandLandmarks[0][8]; 
-                    applyCrop(img, tip.x, tip.y);
+                    const tip = results.multiHandLandmarks[0][8]; // Usamos la punta del dedo índice
+                    const boxSizeW = img.width * 0.12; 
+                    const boxSizeH = boxSizeW * 1.5; 
+                    cropCtx.drawImage(img, (tip.x * img.width) - (boxSizeW/2), (tip.y * img.height) - (boxSizeH/1.5), boxSizeW, boxSizeH, 0, 0, 128, 192);
                 } else {
-                    forceCrop(img);
+                    // Fallback: Si no detecta, toma el centro de la imagen (donde suele estar el diseño)
+                    const boxSizeW = Math.min(img.width, img.height) * 0.4;
+                    const boxSizeH = boxSizeW * 1.5;
+                    cropCtx.drawImage(img, (img.width/2) - (boxSizeW/2), (img.height/2) - (boxSizeW/2), boxSizeW, boxSizeH, 0, 0, 128, 192);
                 }
+
+                nailTextureImage = new Image();
+                nailTextureImage.src = cropCanvas.toDataURL();
+                miniPreview.style.backgroundImage = `url(${nailTextureImage.src})`;
+                
+                loader.style.display = "none";
+                btnGo.style.display = "block";
+                
+                // Limpiar resultados para el modo cámara
+                hands.onResults(onLiveResults);
             });
         };
     };
 
-    function forceCrop(img) {
-        applyCrop(img, 0.5, 0.5); // Recorta el centro
-    }
-
-    function applyCrop(img, xPct, yPct) {
-        cropCtx.clearRect(0, 0, 150, 200);
-        const boxW = img.width * 0.2;
-        const boxH = boxW * 1.5;
-        
-        cropCtx.drawImage(
-            img, 
-            (xPct * img.width) - (boxW/2), (yPct * img.height) - (boxH/2), boxW, boxH, 
-            0, 0, 150, 200
-        );
-
-        nailTexture = new Image();
-        nailTexture.src = cropCanvas.toDataURL();
-        miniPreview.style.backgroundImage = `url(${nailTexture.src})`;
-        
-        loader.style.display = "none";
-        btnGo.style.display = "block";
-        
-        // Preparar para modo cámara
-        hands.onResults(onLiveResults);
-    }
-
+    // --- ACTIVAR CÁMARA (PASO 2) ---
     btnGo.onclick = () => {
-        document.getElementById('step1').style.display = "none";
-        document.getElementById('step2').style.display = "block";
+        step1.style.display = "none";
+        step2.style.display = "block";
         startCamera();
     };
 
+    // --- FILTRO EN TIEMPO REAL CON MAPEO PROYECTIVO ---
     function onLiveResults(results) {
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        if (isFrontCamera) { canvasCtx.translate(canvasElement.width, 0); canvasCtx.scale(-1, 1); }
+        
+        // Espejo (translate -> scale -> translate back)
+        if (isFrontCamera) {
+            canvasCtx.translate(canvasElement.width, 0);
+            canvasCtx.scale(-1, 1);
+        }
+        
         canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-        if (results.multiHandLandmarks && nailTexture) {
+        if (results.multiHandLandmarks && nailTextureImage) {
             for (const landmarks of results.multiHandLandmarks) {
-                [4, 8, 12, 16, 20].forEach((tipIdx, i) => {
+                // Puntas (tips) y las articulaciones superiores (joints) para calcular rotación y escala
+                const fingerTips = [4, 8, 12, 16, 20]; // Pulgar, Índice, Medio, Anular, Meñique
+                const fingerJoints = [3, 7, 11, 15, 19]; 
+
+                fingerTips.forEach((tipIdx, i) => {
                     const tip = landmarks[tipIdx];
-                    const joint = landmarks[[3, 7, 11, 15, 19][i]];
-                    const x = tip.x * 640, y = tip.y * 480;
-                    const angle = Math.atan2(y - (joint.y * 480), x - (joint.x * 640)) + Math.PI/2;
-                    const nailW = Math.hypot(x - (joint.x * 640), y - (joint.y * 480)) * 1.3;
+                    const joint = landmarks[fingerJoints[i]];
+
+                    // Calcular el ángulo del dedo para rotar la uña
+                    const angle = Math.atan2(tip.y - joint.y, tip.x - joint.x) + Math.PI/2;
                     
+                    // Convertir coordenadas normalizadas (0 a 1) a píxeles
+                    const x = tip.x * canvasElement.width;
+                    const y = tip.y * canvasElement.height;
+                    const jX = joint.x * canvasElement.width;
+                    const jY = joint.y * canvasElement.height;
+
+                    // Calcular la escala de la uña basada en qué tan cerca está la mano
+                    const pixelLength = Math.sqrt(Math.pow(x - jX, 2) + Math.pow(y - jY, 2));
+                    const nailWidth = pixelLength * 1.3; // Escala el ancho
+                    const nailHeight = nailWidth * 1.8; // Escala el largo (efecto acrílico alargado)
+
                     canvasCtx.save();
-                    canvasCtx.translate(x, y);
-                    canvasCtx.rotate(angle);
+                    canvasCtx.translate(x, y); // Mover el origen a la punta del dedo
+                    canvasCtx.rotate(angle); // Rotar la uña
+
+                    // --- TRUCO PROFESIONAL: MÁSCARA DE RECORTE CON FORMA DE UÑA ---
                     canvasCtx.beginPath();
-                    canvasCtx.ellipse(0, -nailW*0.4, nailW/2, nailW*0.9, 0, 0, 2 * Math.PI);
-                    canvasCtx.clip();
-                    canvasCtx.drawImage(nailTexture, -nailW/2, -nailW*1.3, nailW, nailW*1.8);
+                    // Crea un óvalo alargado (forma de uña almendrada profesional)
+                    canvasCtx.ellipse(0, -nailHeight/4, nailWidth/2, nailHeight/2, 0, 0, 2 * Math.PI);
+                    canvasCtx.clip(); // Cortar la textura con esta forma de óvalo
+
+                    // Dibujar la textura dentro del óvalo
+                    canvasCtx.drawImage(nailTextureImage, -nailWidth/2, -nailHeight*0.75, nailWidth, nailHeight*1.5);
+                    
+                    // --- EFECTO DE BRILLO GLOSSY ---
+                    // Crea un degradado lineal para simular el reflejo de la luz en el esmalte
+                    const grad = canvasCtx.createLinearGradient(-nailWidth/2, -nailHeight, nailWidth/2, nailH);
+                    grad.addColorStop(0, "rgba(255,255,255,0.4)");
+                    grad.addColorStop(0.5, "rgba(255,255,255,0)");
+                    canvasCtx.fillStyle = grad;
+                    canvasCtx.fill();
+
                     canvasCtx.restore();
                 });
             }
@@ -171,8 +206,12 @@
         canvasCtx.restore();
     }
 
+    // --- INICIADOR DE CÁMARA Y CAMBIO FRONTAL/TRASERA ---
     function startCamera() {
-        if (cameraInstance) cameraInstance.stop();
+        if (cameraInstance) { cameraInstance.stop(); } // Detener cámara anterior
+        
+        hands.onResults(onLiveResults);
+        
         cameraInstance = new Camera(videoElement, {
             onFrame: async () => { await hands.send({image: videoElement}); },
             width: 640, height: 480,
@@ -181,7 +220,12 @@
         cameraInstance.start();
     }
 
-    document.getElementById('switchCamera').onclick = () => { isFrontCamera = !isFrontCamera; startCamera(); };
+    document.getElementById('switchCamera').addEventListener('click', () => {
+        isFrontCamera = !isFrontCamera;
+        startCamera();
+    });
+
 </script>
+
 </body>
 </html>
