@@ -3,32 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EME NAILS Hyper-Realism</title>
+    <title>EME NAILS Ultra-Lite Pro</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
-        :root { --pink: #ff0077; --dark: #050505; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: white; margin: 0; overflow: hidden; }
-        
-        #container { position: relative; width: 100vw; height: 100vh; background: #000; }
+        :root { --pink: #ff0077; --dark: #0a0a0a; }
+        body { font-family: sans-serif; background: #000; color: white; margin: 0; overflow: hidden; }
+        #container { position: relative; width: 100vw; height: 100vh; }
         video, canvas { position: absolute; width: 100%; height: 100%; object-fit: cover; }
-
-        .ui-overlay { position: absolute; bottom: 0; width: 100%; z-index: 10; background: rgba(0,0,0,0.9); padding: 20px; border-top: 2px solid var(--pink); border-radius: 25px 25px 0 0; box-sizing: border-box; }
-        
-        .scroll-row { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; scrollbar-width: none; }
-        .scroll-row::-webkit-scrollbar { display: none; }
-
-        .btn-ui { background: #1a1a1a; border: 1px solid #333; color: white; padding: 10px 15px; border-radius: 12px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; transition: 0.3s; }
-        .btn-ui.active { background: var(--pink); border-color: var(--pink); box-shadow: 0 0 15px var(--pink); }
-
-        .finger-sel { display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; }
-        .f-btn { width: 40px; height: 40px; border-radius: 12px; border: 1px solid #444; background: #111; color: white; cursor: pointer; }
-        .f-btn.active { border-color: #00ff88; color: #00ff88; box-shadow: 0 0 10px rgba(0,255,136,0.3); }
-
-        .btn-pdf { background: #00ff88; color: black; border: none; padding: 15px; border-radius: 15px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; }
+        .ui { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.92); padding: 15px; border-top: 2px solid var(--pink); box-sizing: border-box; z-index: 100; border-radius: 20px 20px 0 0; }
+        .row { display: flex; overflow-x: auto; gap: 8px; padding: 10px 0; scrollbar-width: none; }
+        .row::-webkit-scrollbar { display: none; }
+        .btn { background: #222; border: 1px solid #444; color: white; padding: 10px 14px; border-radius: 12px; white-space: nowrap; font-size: 0.8rem; }
+        .btn.active { background: var(--pink); border-color: white; font-weight: bold; }
+        .f-sel { display: flex; justify-content: center; gap: 6px; margin-bottom: 5px; }
+        .f-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid #444; background: #111; color: white; }
+        .f-btn.active { border-color: #00ff88; color: #00ff88; }
     </style>
 </head>
 <body>
@@ -38,40 +31,34 @@
     <canvas id="output_canvas"></canvas>
 </div>
 
-<div class="ui-overlay">
-    <div class="finger-sel">
+<div class="ui">
+    <div class="f-sel">
         <button class="f-btn active" onclick="selF('all')">All</button>
         <button class="f-btn" onclick="selF(0)">P</button>
         <button class="f-btn" onclick="selF(1)">I</button>
         <button class="f-btn" onclick="selF(2)">M</button>
         <button class="f-btn" onclick="selF(3)">A</button>
         <button class="f-btn" onclick="selF(4)">m</button>
+        <button class="f-btn" onclick="toggleCam()" style="margin-left:15px; background:var(--pink)">🔄</button>
     </div>
 
-    <div class="scroll-row">
-        <input type="color" id="c1" value="#ff0077" title="Color Principal">
-        <input type="color" id="c2" value="#7a00ff" title="Color Degradado">
-        <button class="btn-ui active" onclick="setEff('solid', this)">Sólido</button>
-        <button class="btn-ui" onclick="setEff('ombre', this)">Ombré</button>
-        <button class="btn-ui" onclick="setEff('cateye', this)">Ojo de Gato</button>
+    <div class="row">
+        <input type="color" id="c1" value="#ff0077">
+        <button class="btn active" onclick="setEff('glossy', this)">Glossy ✨</button>
+        <button class="btn" onclick="setEff('mate', this)">Mate 🌑</button>
+        <button class="btn" onclick="setEff('cateye', this)">Ojo Gato 👁️</button>
+        <button class="btn" onclick="setEff('ombre', this)">Degradado 🌈</button>
     </div>
 
-    <div class="scroll-row">
-        <button class="btn-ui" onclick="setShp('almond', this)">Almendra</button>
-        <button class="btn-ui" onclick="setShp('coffin', this)">Coffin</button>
-        <button class="btn-ui" onclick="setShp('stiletto', this)">Stiletto</button>
-        <button class="btn-ui" onclick="setShp('square-long', this)">XL Square</button>
+    <div class="row">
+        <button class="btn" onclick="setShp('almond', this)">Almendra</button>
+        <button class="btn" onclick="setShp('coffin', this)">Coffin</button>
+        <button class="btn" onclick="setShp('stiletto', this)">Stiletto</button>
+        <button class="btn" onclick="setJew('💎', this)">Pedrería</button>
+        <button class="btn" onclick="setJew('none', this)">Sin Joyas</button>
     </div>
 
-    <div class="scroll-row">
-        <button class="btn-ui" onclick="setStk('🌸')">🌸</button>
-        <button class="btn-ui" onclick="setStk('⭐')">⭐</button>
-        <button class="btn-ui" onclick="setStk('💎')">💎</button>
-        <button class="btn-ui" onclick="setStk('🐍')">🐍</button>
-        <button class="btn-ui" onclick="setStk('none')">Sin Sticker</button>
-    </div>
-
-    <button class="btn-pdf" onclick="genPDF()">📥 GENERAR FICHA TÉCNICA PDF</button>
+    <button onclick="genPDF()" style="background:#00ff88; color:000; width:100%; border:none; padding:12px; border-radius:10px; font-weight:bold; margin-top:5px;">📥 DESCARGAR DISEÑO PDF</button>
 </div>
 
 <script>
@@ -79,81 +66,76 @@
     const canvas = document.getElementById('output_canvas');
     const ctx = canvas.getContext('2d');
     
-    let nailState = Array(5).fill().map(() => ({ 
-        c1: "#ff0077", c2: "#7a00ff", effect: "solid", shape: "almond", sticker: "none" 
-    }));
+    let nailState = Array(5).fill().map(() => ({ c1: "#ff0077", effect: "glossy", shape: "almond", jewel: "none" }));
     let currentF = 'all';
     let isFront = true;
+    let camera = null;
 
+    // IA Optimizada: bajamos modelComplexity para evitar que se trabe
     const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 
     function selF(i) { currentF = i; document.querySelectorAll('.f-btn').forEach((b,idx)=>b.classList.toggle('active', i==='all'?idx===0:idx===(i+1))); }
-    function setEff(e, b) { upd('effect', e); uiAct(b); }
-    function setShp(s, b) { upd('shape', s); uiAct(b); }
-    function setStk(s) { upd('sticker', s); }
-    function uiAct(b) { b.parentElement.querySelectorAll('.btn-ui').forEach(x=>x.classList.remove('active')); b.classList.add('active'); }
+    function setEff(e, b) { upd('effect', e); act(b); }
+    function setShp(s, b) { upd('shape', s); act(b); }
+    function setJew(j, b) { upd('jewel', j); act(b); }
+    function act(b) { b.parentElement.querySelectorAll('.btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); }
     function upd(p, v) { if(currentF==='all') nailState.forEach(n=>n[p]=v); else nailState[currentF][p]=v; }
-    
     document.getElementById('c1').oninput = (e) => upd('c1', e.target.value);
-    document.getElementById('c2').oninput = (e) => upd('c2', e.target.value);
 
-    function drawRealisticNail(x, y, angle, dist, s) {
-        let w = dist * 0.9;
-        let h = (s.shape === 'stiletto' || s.shape === 'coffin' || s.shape==='square-long') ? w * 2.8 : w * 1.8;
-
+    function drawNail(x, y, angle, dist, s) {
+        let w = dist * 0.85;
+        let h = (s.shape === 'stiletto' || s.shape === 'coffin') ? w * 2.7 : w * 1.8;
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
 
-        // --- PATH DE LA UÑA ---
+        // Path de uña
         ctx.beginPath();
         if(s.shape === 'almond') ctx.ellipse(0, -h/4, w/2, h/2, 0, 0, 2*Math.PI);
         else if(s.shape === 'stiletto') { ctx.moveTo(-w/2,0); ctx.lineTo(0,-h); ctx.lineTo(w/2,0); ctx.arc(0,0,w/2,0,Math.PI); }
         else if(s.shape === 'coffin') { ctx.moveTo(-w/2,0); ctx.lineTo(-w/3,-h); ctx.lineTo(w/3,-h); ctx.lineTo(w/2,0); ctx.arc(0,0,w/2,0,Math.PI); }
-        else { ctx.roundRect(-w/2, -h, w, h+5, [4,4,0,0]); }
+        else { ctx.roundRect(-w/2, -h, w, h+3, [4,4,0,0]); }
         ctx.clip();
 
-        // --- 1. BASE COLOR & EFECTO ---
-        if(s.effect === 'ombre') {
-            let g = ctx.createLinearGradient(0, 0, 0, -h);
-            g.addColorStop(0, s.c1); g.addColorStop(1, s.c2);
-            ctx.fillStyle = g;
-        } else if(s.effect === 'cateye') {
-            ctx.fillStyle = s.c1;
-            ctx.fillRect(-w, -h, w*2, h*2);
-            let g = ctx.createLinearGradient(-w, -h, w, 0);
-            g.addColorStop(0, 'transparent');
-            g.addColorStop(0.5, 'rgba(255,255,255,0.6)');
-            g.addColorStop(1, 'transparent');
-            ctx.fillStyle = g;
-        } else {
-            ctx.fillStyle = s.c1;
+        // 1. Color Base + Volumen
+        let grad = ctx.createRadialGradient(0, -h/2, w/4, 0, -h/2, w);
+        grad.addColorStop(0, s.c1);
+        grad.addColorStop(1, adjustColor(s.c1, -40));
+        ctx.fillStyle = grad;
+        ctx.fillRect(-w, -h*1.2, w*2, h*2);
+
+        // 2. Efecto Especial
+        if(s.effect === 'cateye') {
+            let cg = ctx.createLinearGradient(-w, -h, w, 0);
+            cg.addColorStop(0.4, 'transparent'); cg.addColorStop(0.5, 'rgba(255,255,255,0.4)'); cg.addColorStop(0.6, 'transparent');
+            ctx.fillStyle = cg; ctx.fillRect(-w, -h, w*2, h*2);
         }
-        ctx.fillRect(-w, -h, w*2, h*2);
 
-        // --- 2. SOMBRA DE PROFUNDIDAD (CURVATURA) ---
-        let shadow = ctx.createRadialGradient(0, -h/2, w/4, 0, -h/2, w);
-        shadow.addColorStop(0, 'transparent');
-        shadow.addColorStop(1, 'rgba(0,0,0,0.4)');
-        ctx.fillStyle = shadow;
-        ctx.fillRect(-w, -h, w*2, h*2);
+        // 3. Acabado (Mate vs Glossy)
+        if(s.effect === 'glossy') {
+            let shine = ctx.createLinearGradient(-w/2, -h, w/2, 0);
+            shine.addColorStop(0, 'rgba(255,255,255,0.4)'); shine.addColorStop(0.2, 'transparent');
+            ctx.fillStyle = shine; ctx.fill();
+        }
 
-        // --- 3. REFLEJO ESPECULAR (EL SECRETO DEL REALISMO) ---
-        let shine = ctx.createLinearGradient(-w/2, -h, w/2, 0);
-        shine.addColorStop(0, 'rgba(255,255,255,0.5)');
-        shine.addColorStop(0.2, 'transparent');
-        ctx.fillStyle = shine;
-        ctx.fill();
-
-        // --- 4. STICKER ---
-        if(s.sticker !== 'none') {
-            ctx.shadowBlur = 5; ctx.shadowColor = "black";
-            ctx.fillStyle = "white"; ctx.font = `${w/2}px Arial`;
-            ctx.textAlign = "center"; ctx.fillText(s.sticker, 0, -h/2);
+        // 4. Pedrería 3D
+        if(s.jewel !== 'none') {
+            ctx.shadowBlur = 8; ctx.shadowColor = "white";
+            ctx.fillStyle = "#fff"; ctx.font = `${w/3}px serif`;
+            ctx.fillText(s.jewel, -w/6, -h/1.5);
+            ctx.shadowBlur = 0;
         }
 
         ctx.restore();
+    }
+
+    function adjustColor(hex, amt) {
+        let num = parseInt(hex.slice(1), 16);
+        let r = Math.max(0, Math.min(255, (num >> 16) + amt));
+        let g = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amt));
+        let b = Math.max(0, Math.min(255, (num & 0x0000FF) + amt));
+        return "#" + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
     }
 
     function onResults(results) {
@@ -163,40 +145,40 @@
         if (isFront) { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
         ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
 
-        if (results.multiHandLandmarks) {
-            results.multiHandLandmarks[0].forEach((pt, i) => {
-                const tips = [4, 8, 12, 16, 20];
-                const joints = [3, 7, 11, 15, 19];
-                let idx = tips.indexOf(i);
-                if(idx !== -1) {
-                    const tip = pt; const joint = results.multiHandLandmarks[0][joints[idx]];
-                    const x = tip.x * canvas.width, y = tip.y * canvas.height;
-                    const jX = joint.x * canvas.width, jY = joint.y * canvas.height;
-                    const angle = Math.atan2(y - jY, x - jX) + Math.PI/2;
-                    const dist = Math.hypot(x-jX, y-jY);
-                    drawRealisticNail(x, y, angle, dist, nailState[idx]);
-                }
+        if (results.multiHandLandmarks && results.multiHandLandmarks[0]) {
+            const tips = [4, 8, 12, 16, 20];
+            const joints = [3, 7, 11, 15, 19];
+            tips.forEach((tIdx, i) => {
+                const tip = results.multiHandLandmarks[0][tIdx];
+                const joint = results.multiHandLandmarks[0][joints[i]];
+                const x = tip.x * canvas.width, y = tip.y * canvas.height;
+                const dist = Math.hypot(x - joint.x * canvas.width, y - joint.y * canvas.height);
+                const angle = Math.atan2(y - joint.y * canvas.height, x - joint.x * canvas.width) + Math.PI/2;
+                drawNail(x, y, angle, dist, nailState[i]);
             });
         }
         ctx.restore();
     }
 
-    const camera = new Camera(video, {
-        onFrame: async () => { await hands.send({image: video}); },
-        width: 1280, height: 720
-    });
-    camera.start();
-    hands.onResults(onResults);
-
-    function genPDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.text("EME NAILS STUDIO - CONFIGURACIÓN REAL", 20, 20);
-        nailState.forEach((n, i) => {
-            doc.text(`Dedo ${i+1}: ${n.shape} - ${n.effect} - Colores: ${n.c1}, ${n.c2}`, 20, 40+(i*10));
+    async function startCam() {
+        if(camera) await camera.stop();
+        camera = new Camera(video, {
+            onFrame: async () => { await hands.send({image: video}); },
+            width: 640, height: 480, facingMode: isFront ? 'user' : 'environment'
         });
-        doc.save("mi-diseno.pdf");
+        camera.start();
     }
+
+    function toggleCam() { isFront = !isFront; startCam(); }
+    function genPDF() {
+        const doc = new jspdf.jsPDF();
+        doc.text("Ficha EME NAILS PRO", 20, 20);
+        nailState.forEach((n, i) => doc.text(`Uña ${i+1}: ${n.shape}, ${n.effect}, Color: ${n.c1}`, 20, 40 + i*10));
+        doc.save("diseño-nails.pdf");
+    }
+
+    hands.onResults(onResults);
+    startCam();
 </script>
 </body>
 </html>
