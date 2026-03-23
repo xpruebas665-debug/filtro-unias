@@ -2,250 +2,167 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EME NAILS - AI Pro Filter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EME NAILS Studio & PDF</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <style>
-        :root { --pink: #ff0077; --purple: #7a00ff; --dark: #0a0a0a; }
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--dark); color: white; margin: 0; padding: 0; overflow-x: hidden; }
-        .header { padding: 15px; background: linear-gradient(135deg, var(--pink), var(--purple)); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        h1 { margin: 0; font-size: 1.8rem; letter-spacing: 2px; text-transform: uppercase; }
-
-        /* Vistas por pasos */
-        #step1, #step2 { padding: 15px; max-width: 480px; margin: 0 auto; }
-        #step2 { display: none; }
-
-        .card { background: #1a1a1a; padding: 20px; border-radius: 15px; border: 1px solid #333; }
+        :root { --pink: #ff0077; --dark: #0a0a0a; }
+        body { font-family: 'Arial', sans-serif; background: var(--dark); color: white; margin: 0; overflow: hidden; }
         
-        .btn-main { 
-            background: white; color: black; border: none; padding: 12px; 
-            border-radius: 25px; font-weight: bold; cursor: pointer; width: 100%; 
-            font-size: 1rem; margin-top: 15px; transition: 0.2s;
+        /* Interfaz de Diseño */
+        .studio-panel {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.85); padding: 15px;
+            border-top: 2px solid var(--pink); display: flex;
+            flex-direction: column; gap: 10px; z-index: 10;
         }
-        .btn-main:active { transform: scale(0.97); background: #eee; }
-
-        #container { position: relative; display: inline-block; border-radius: 15px; overflow: hidden; border: 2px solid var(--pink); width: 100%; margin-top: 10px;}
-        video { display: none; }
-        canvas { width: 100%; height: auto; background: #000; display: block; }
-
-        .preview-circle { 
-            width: 60px; height: 80px; border-radius: 30px 30px 8px 8px; border: 2px solid var(--pink); 
-            margin: 10px auto; background-size: cover; background-position: center; display: none;
+        
+        .controls-row { display: flex; justify-content: space-around; align-items: center; }
+        .control-group { display: flex; flex-direction: column; align-items: center; font-size: 0.8rem; }
+        
+        button { 
+            background: #333; color: white; border: 1px solid #555; 
+            padding: 8px 12px; border-radius: 10px; cursor: pointer;
         }
+        button.active { border-color: var(--pink); background: var(--pink); }
+        
+        #container { position: relative; width: 100vw; height: 70vh; }
+        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+        video { transform: scaleX(-1); } /* Espejo para video */
 
-        #status { margin-top: 10px; font-weight: bold; padding: 10px; border-radius: 10px; font-size: 0.9rem; }
-        .status-loading { color: #ffeb3b; background: rgba(255, 235, 59, 0.1); border: 1px dashed #ffeb3b; }
-        .status-ready { color: #00ff88; background: rgba(0, 255, 136, 0.1); border: 1px solid #00ff88; }
-        .status-error { color: #ff4444; background: rgba(255, 68, 68, 0.1); border: 1px solid #ff4444; }
+        .btn-pdf { background: #00ff88; color: black; font-weight: bold; border: none; padding: 10px; width: 100%; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1>EME NAILS</h1>
+<div id="container">
+    <video id="input_video"></video>
+    <canvas id="output_canvas"></canvas>
 </div>
 
-<div id="step1">
-    <div class="card">
-        <h3>💅 Paso 1: Sube tu diseño</h3>
-        <p style="font-size: 0.9rem; color: #aaa; margin-top: 0;">Selecciona una foto (JPG/PNG) para extraer el arte.</p>
-        <input type="file" id="nailUpload" accept="image/jpeg,image/png" style="width: 100%;">
+<div class="studio-panel">
+    <div class="controls-row">
+        <div class="control-group">
+            <span>Color</span>
+            <input type="color" id="colorPicker" value="#ff0077">
+        </div>
         
-        <div id="status" class="status-loading" style="display: none;">⚡ Procesando con IA...</div>
-        
-        <button id="goStep2" class="btn-main" style="display: none;">Ver en mis manos →</button>
-    </div>
-</div>
+        <div class="control-group">
+            <span>Corte</span>
+            <div style="display:flex; gap:5px;">
+                <button onclick="setShape('natural')" id="btn-natural" class="active">Oval</button>
+                <button onclick="setShape('stiletto')" id="btn-stiletto">Larga</button>
+            </div>
+        </div>
 
-<div id="step2">
-    <div class="preview-circle" id="miniPreview"></div>
-    <button id="switchCamera" class="btn-main" style="margin-top: 0; margin-bottom: 10px; padding: 8px; font-size: 0.9rem;">🔄 Cambiar Cámara</button>
-    
-    <div id="container">
-        <video id="input_video"></video>
-        <canvas id="output_canvas" width="640" height="480"></canvas>
+        <div class="control-group">
+            <span>Arte</span>
+            <select id="stickerSelect">
+                <option value="none">Ninguno</option>
+                <option value="🌸">Flores</option>
+                <option value="⭐">Estrellas</option>
+                <option value="💎">Brillos</option>
+            </select>
+        </div>
     </div>
-    
-    <button onclick="location.reload()" class="btn-main" style="background: transparent; color: white; border: 1px solid #444; margin-top: 15px;">Subir otro diseño</button>
-</div>
 
-<canvas id="crop_canvas" width="150" height="200" style="display:none;"></canvas>
+    <button class="btn-pdf" onclick="generatePDF()">📥 Descargar Ficha Técnica (PDF)</button>
+</div>
 
 <script>
     const videoElement = document.getElementById('input_video');
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
-    const cropCanvas = document.getElementById('crop_canvas');
-    const cropCtx = cropCanvas.getContext('2d');
     
-    const step1 = document.getElementById('step1');
-    const step2 = document.getElementById('step2');
-    const statusDiv = document.getElementById('status');
-    const btnGo = document.getElementById('goStep2');
-    const miniPreview = document.getElementById('miniPreview');
+    let currentColor = "#ff0077";
+    let currentShape = "natural";
+    let currentSticker = "none";
 
-    let nailTextureImage = null;
-    let isFrontCamera = true;
-    let cameraInstance = null;
-    let processingPhoto = false;
-
-    // Configuración de IA para balance de velocidad
+    // Configuración de MediaPipe
     const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5 });
 
-    // --- MANEJO DE IMAGEN "A PRUEBA DE FALLOS" ---
-    document.getElementById('nailUpload').onchange = async (e) => {
-        const file = e.target.files[0];
-        if(!file) return;
-        
-        // UI de carga
-        statusDiv.innerText = "⚡ Procesando con IA de Alta Fidelidad...";
-        statusDiv.className = "status-loading";
-        statusDiv.style.display = "block";
-        btnGo.style.display = "none";
-        miniPreview.style.display = "none";
-        
-        processingPhoto = true; // Pausa el filtro de cámara por seguridad
-
-        const img = new Image();
-        img.src = URL.createObjectURL(file);
-        
-        img.onload = async () => {
-            let processed = false;
-
-            // --- TRUCO: Temporizador de Seguridad (TIMEOUT) ---
-            // Si la IA no responde en 3 segundos, asumimos que se congeló y hacemos recorte manual.
-            const safetyTimeout = setTimeout(() => {
-                if (!processed) {
-                    console.log("IA congelada o muy lenta. Usando fallback manual.");
-                    applyManualCrop(img);
-                }
-            }, 3000); 
-
-            // Intentar usar la IA
-            try {
-                await hands.send({image: img});
-            } catch (error) {
-                console.error("Error crítico de IA:", error);
-                if (!processed) applyManualCrop(img);
-                return;
-            }
-            
-            hands.onResults((results) => {
-                if (processed) return; // Si ya se activó el timeout, no hagas nada
-                processed = true;
-                clearTimeout(safetyTimeout); // Cancela el temporizador de seguridad
-
-                // Escenario A: IA detectó mano y uña
-                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                    const tip = results.multiHandLandmarks[0][8]; // Punta del índice
-                    const boxSizeW = img.width * 0.15;
-                    const boxSizeH = boxSizeW * 1.5;
-                    applyCropPath(img, (tip.x * img.width) - (boxSizeW/2), (tip.y * img.height) - (boxSizeH/1.5), boxSizeW, boxSizeH);
-                    statusDiv.innerText = "✅ Diseño extraído con IA";
-                    statusDiv.className = "status-badge status-ready";
-                } 
-                // Escenario B: IA no encontró mano (Ej. solo se ve la uña muy de cerca)
-                else {
-                    applyManualCrop(img);
-                }
-            });
-        };
-    };
-
-    function applyManualCrop(img) {
-        // Fallback: Si no detecta, toma el centro de la imagen
-        const boxSizeW = Math.min(img.width, img.height) * 0.4;
-        const boxSizeH = boxSizeW * 1.5;
-        applyCropPath(img, (img.width/2) - (boxSizeW/2), (img.height/2) - (boxSizeH/2), boxSizeW, boxSizeH);
-        statusDiv.innerText = "⚠️ Detección manual (Centro)";
-        statusDiv.className = "status-badge status-error"; // Usamos rojo para indicar fallback
+    function setShape(shape) {
+        currentShape = shape;
+        document.getElementById('btn-natural').classList.toggle('active', shape === 'natural');
+        document.getElementById('btn-stiletto').classList.toggle('active', shape === 'stiletto');
     }
 
-    function applyCropPath(img, x, y, w, h) {
-        cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+    document.getElementById('colorPicker').oninput = (e) => currentColor = e.target.value;
+    document.getElementById('stickerSelect').onchange = (e) => currentSticker = e.target.value;
+
+    function onResults(results) {
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
         
-        // Crear la máscara almendrada profesional para la textura
-        cropCtx.save();
-        cropCtx.beginPath();
-        cropCtx.ellipse(75, 50, 60, 90, 0, 0, 2 * Math.PI); // Óvalo que simula forma de uña
-        cropCtx.clip(); // Recorta lo que dibujemos dentro de este óvalo
-
-        // Dibujar el fragmento de la foto original dentro del óvalo
-        cropCtx.drawImage(img, x, y, w, h, 0, -20, 150, 200);
-        cropCtx.restore();
-
-        // Convertir el Canvas oculto en una imagen de textura usable
-        nailTextureImage = new Image();
-        nailTextureImage.src = cropCanvas.toDataURL();
-        miniPreview.style.backgroundImage = `url(${nailTextureImage.src})`;
-        miniPreview.style.display = "block";
-        
-        btnGo.style.display = "block";
-        
-        // Reactivar el filtro de cámara
-        processingPhoto = false;
-        hands.onResults(onLiveResults);
-    }
-
-    // --- ACTIVAR CÁMARA (PASO 2) ---
-    btnGo.onclick = () => {
-        step1.style.display = "none";
-        step2.style.display = "block";
-        startCamera();
-    };
-
-    // --- FILTRO EN TIEMPO REAL CON MASCARA PROFESIONAL ---
-    function onLiveResults(results) {
-        if(processingPhoto) return; // No procesar si estamos cargando una foto
-
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         
-        if (isFrontCamera) {
-            canvasCtx.translate(canvasElement.width, 0);
-            canvasCtx.scale(-1, 1);
-        }
-        
+        // Dibujar video espejo
+        canvasCtx.translate(canvasElement.width, 0);
+        canvasCtx.scale(-1, 1);
         canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-        if (results.multiHandLandmarks && nailTextureImage) {
+        if (results.multiHandLandmarks) {
             for (const landmarks of results.multiHandLandmarks) {
-                const fingerTips = [4, 8, 12, 16, 20];
-                const fingerJoints = [3, 7, 11, 15, 19]; 
+                const tips = [4, 8, 12, 16, 20];
+                const joints = [3, 7, 11, 15, 19];
 
-                fingerTips.forEach((tipIdx, i) => {
+                tips.forEach((tipIdx, i) => {
                     const tip = landmarks[tipIdx];
-                    const joint = landmarks[fingerJoints[i]];
-
-                    const angle = Math.atan2(tip.y - joint.y, tip.x - joint.x) + Math.PI/2;
+                    const joint = landmarks[joints[i]];
                     
                     const x = tip.x * canvasElement.width;
                     const y = tip.y * canvasElement.height;
                     const jX = joint.x * canvasElement.width;
                     const jY = joint.y * canvasElement.height;
 
-                    const pixelLength = Math.sqrt(Math.pow(x - jX, 2) + Math.pow(y - jY, 2));
-                    const nailWidth = pixelLength * 1.3; 
-                    const nailHeight = nailWidth * 1.8; 
+                    const angle = Math.atan2(y - jY, x - jX) + Math.PI/2;
+                    const dist = Math.hypot(x - jX, y - jY);
+                    
+                    // Lógica de tamaño realista
+                    let nailW = dist * 0.8;
+                    let nailH = currentShape === "stiletto" ? nailW * 2.5 : nailW * 1.6;
 
                     canvasCtx.save();
                     canvasCtx.translate(x, y);
                     canvasCtx.rotate(angle);
+
+                    // --- DIBUJO DE LA UÑA ---
+                    canvasCtx.fillStyle = currentColor;
+                    canvasCtx.shadowBlur = 10;
+                    canvasCtx.shadowColor = "rgba(0,0,0,0.5)";
                     
-                    // Dibujar la textura almendrada profesional
-                    canvasCtx.globalAlpha = 0.95; // Un poco de transparencia para mezclar
-                    canvasCtx.drawImage(nailTextureImage, -nailWidth/2, -nailWidth*1.3, nailWidth, nailWidth*1.8);
-                    
-                    // Efecto de brillo Glossy
-                    const grad = canvasCtx.createLinearGradient(-nailWidth/2, -nailWidth, nailWidth/2, nailWidth);
-                    grad.addColorStop(0, "rgba(255,255,255,0.35)");
-                    grad.addColorStop(0.5, "rgba(255,255,255,0)");
+                    canvasCtx.beginPath();
+                    if(currentShape === "natural") {
+                        canvasCtx.ellipse(0, -nailH/4, nailW/2, nailH/2, 0, 0, 2 * Math.PI);
+                    } else {
+                        // Forma Stiletto (Puntiaguda)
+                        canvasCtx.moveTo(-nailW/2, 0);
+                        canvasCtx.lineTo(0, -nailH);
+                        canvasCtx.lineTo(nailW/2, 0);
+                        canvasCtx.arc(0, 0, nailW/2, 0, Math.PI);
+                    }
+                    canvasCtx.fill();
+
+                    // Brillo realista
+                    const grad = canvasCtx.createLinearGradient(-nailW/2, 0, nailW/2, 0);
+                    grad.addColorStop(0, "rgba(255,255,255,0.2)");
+                    grad.addColorStop(0.5, "transparent");
                     canvasCtx.fillStyle = grad;
                     canvasCtx.fill();
+
+                    // Sticker
+                    if(currentSticker !== "none") {
+                        canvasCtx.fillStyle = "white";
+                        canvasCtx.font = `${nailW/2}px Arial`;
+                        canvasCtx.textAlign = "center";
+                        canvasCtx.fillText(currentSticker, 0, -nailH/3);
+                    }
 
                     canvasCtx.restore();
                 });
@@ -254,22 +171,37 @@
         canvasCtx.restore();
     }
 
-    function startCamera() {
-        if (cameraInstance) { cameraInstance.stop(); } 
-        hands.onResults(onLiveResults);
-        cameraInstance = new Camera(videoElement, {
-            onFrame: async () => { if(!processingPhoto) await hands.send({image: videoElement}); },
-            width: 640, height: 480,
-            facingMode: isFrontCamera ? 'user' : 'environment'
-        });
-        cameraInstance.start();
+    // GENERADOR DE PDF
+    async function generatePDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.setFontSize(22);
+        doc.text("EME NAILS - Ficha Técnica", 20, 20);
+        
+        doc.setFontSize(12);
+        doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 20, 30);
+        doc.text(`Color Base: ${currentColor}`, 20, 40);
+        doc.text(`Corte Elegido: ${currentShape.toUpperCase()}`, 20, 50);
+        doc.text(`Arte Adicional: ${currentSticker}`, 20, 60);
+        
+        doc.setDrawColor(255, 0, 119);
+        doc.rect(15, 70, 180, 100);
+        doc.text("Instrucciones para la Manicurista:", 20, 80);
+        doc.text("1. Preparación de uña natural.", 20, 90);
+        doc.text(`2. Aplicar gel base y 2 capas de color ${currentColor}.`, 20, 100);
+        doc.text(`3. Esculpir forma ${currentShape} de longitud media/larga.`, 20, 110);
+        doc.text(`4. Aplicar diseño de ${currentSticker} en zona central.`, 20, 120);
+        
+        doc.save("diseño-eme-nails.pdf");
+        alert("¡PDF Descargado! Llévalo a tu salón favorito.");
     }
 
-    document.getElementById('switchCamera').onclick = () => {
-        isFrontCamera = !isFrontCamera;
-        startCamera();
-    };
+    const camera = new Camera(videoElement, {
+        onFrame: async () => { await hands.send({image: videoElement}); },
+        width: 640, height: 480
+    });
+    camera.start();
 </script>
-
 </body>
 </html>
