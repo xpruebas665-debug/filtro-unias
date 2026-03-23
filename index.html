@@ -2,33 +2,63 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Glow Studio Nail AI Filter Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EME NAILS - AI Filter</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #111; color: white; margin: 0; padding: 0; }
-        .header { padding: 20px; background: linear-gradient(90deg, #ff0077, #aa00ff); box-shadow: 0 4px 15px rgba(255, 0, 119, 0.5); }
-        h1 { margin: 0; font-size: 2.5em; text-transform: uppercase; letter-spacing: 2px; }
-        #container { position: relative; margin-top: 30px; display: inline-block; line-height: 0; }
-        video { display: none; } /* Ocultamos el video crudo */
-        canvas { border: 4px solid #ff0077; border-radius: 20px; max-width: 95vw; background: black; box-shadow: 0 0 25px rgba(255, 0, 119, 0.7); }
-        .controls { margin: 30px; padding: 20px; background: #222; border-radius: 15px; display: inline-block; }
-        input[type="file"] { color: white; cursor: pointer; margin-top: 10px; }
-        #status { color: #00ffcc; font-weight: bold; margin-top: 15px; }
+        :root { --pink: #ff0077; --purple: #7a00ff; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #0a0a0a; color: white; margin: 0; }
+        
+        .header { 
+            padding: 25px; 
+            background: linear-gradient(135deg, var(--pink), var(--purple));
+            box-shadow: 0 4px 20px rgba(255, 0, 119, 0.4);
+            margin-bottom: 20px;
+        }
+        
+        h1 { margin: 0; font-size: 2.5rem; letter-spacing: 3px; font-weight: 800; }
+
+        .controls { 
+            margin: 20px auto; 
+            padding: 20px; 
+            background: #1a1a1a; 
+            border-radius: 15px; 
+            max-width: 500px;
+            border: 1px solid #333;
+        }
+
+        #container { position: relative; display: inline-block; line-height: 0; border-radius: 20px; overflow: hidden; border: 3px solid var(--pink); }
+        video { display: none; }
+        canvas { max-width: 100%; height: auto; background: #000; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            background: #333;
+        }
+        .ready { background: #00ff88; color: #000; font-weight: bold; }
+        
+        input[type="file"] { margin-top: 10px; color: #ccc; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1>💅 Nail AI Master</h1>
+    <h1>EME NAILS</h1>
 </div>
 
 <div class="controls">
-    <label>1. Sube una foto de un diseño (que se vea la mano): </label><br>
+    <strong>1. Sube tu diseño favorito</strong><br>
+    <small>(Asegúrate de que se vean bien las uñas en la foto)</small><br>
     <input type="file" id="nailUpload" accept="image/*">
-    <div id="status">Esperando diseño...</div>
+    <div id="status" class="status-badge">Esperando imagen...</div>
 </div>
 
 <div id="container">
@@ -36,7 +66,7 @@
     <canvas id="output_canvas" width="640" height="480"></canvas>
 </div>
 
-<canvas id="crop_canvas" width="100" height="100" style="display:none;"></canvas>
+<canvas id="crop_canvas" width="128" height="128" style="display:none;"></canvas>
 
 <script>
     const videoElement = document.getElementById('input_video');
@@ -44,98 +74,99 @@
     const canvasCtx = canvasElement.getContext('2d');
     const cropCanvas = document.getElementById('crop_canvas');
     const cropCtx = cropCanvas.getContext('2d');
-    const status = document.getElementById('status');
+    const statusDiv = document.getElementById('status');
 
-    let extractedNailTextureImage = null;
+    let nailTexture = null;
 
-    // Configuración avanzada de la IA con modelo de complejidad total (más potente)
+    // Configuración de la IA con máxima precisión (Complejidad 1 para balance de velocidad)
     const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-    hands.setOptions({ maxNumHands: 1, modelComplexity: 2, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
+    hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.6,
+        minTrackingConfidence: 0.6
+    });
 
-    // --- PASO 1: DETECTAR Y RECORTAR EL DISEÑO DE LA FOTO SUBIDA ---
+    // --- ESCANEO INTELIGENTE DE LA FOTO SUBIDA ---
     document.getElementById('nailUpload').onchange = async (e) => {
-        status.innerText = "Cargando diseño...";
+        statusDiv.innerText = "Escaneando diseño con IA...";
+        statusDiv.className = "status-badge";
+        
         const file = e.target.files[0];
         const img = new Image();
         img.src = URL.createObjectURL(file);
         
         img.onload = async () => {
-            // Usamos la IA para encontrar la uña en la foto subida
+            // Cambiamos temporalmente a modo de alta precisión para la foto estática
+            hands.setOptions({ modelComplexity: 1, minDetectionConfidence: 0.4 });
+            
             await hands.send({image: img});
             
-            // Re-configuramos la IA para capturar el resultado del recorte
-            hands.onResults((results) => {
+            const onPhotoResult = (results) => {
                 if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                     const landmarks = results.multiHandLandmarks[0];
-                    const indexTip = landmarks[8]; // Punta del índice de la foto subida
-                    const indexJoint = landmarks[7]; // Articulación DIP del índice
-
-                    // Recortamos un área pequeña alrededor de la uña
-                    const size = img.width * 0.1; // Ajuste para el tamaño de la uña acrílica
-                    cropCtx.clearRect(0, 0, 100, 100);
+                    // Usamos la punta del dedo medio (12) o índice (8) para el recorte
+                    const tip = landmarks[12]; 
+                    
+                    // Recorte inteligente: ajustamos el tamaño según la imagen
+                    const boxSize = img.width * 0.12; 
+                    cropCtx.clearRect(0, 0, 128, 128);
                     cropCtx.drawImage(
                         img, 
-                        indexTip.x * img.width - (size/2), indexTip.y * img.height - (size/2), size, size, 
-                        0, 0, 100, 100
+                        tip.x * img.width - (boxSize/2), tip.y * img.height - (boxSize/2), boxSize, boxSize, 
+                        0, 0, 128, 128
                     );
                     
-                    extractedNailTextureImage = new Image();
-                    extractedNailTextureImage.src = cropCanvas.toDataURL();
-                    status.innerText = "✅ Diseño detectado. ¡Pon tu mano!";
+                    nailTexture = new Image();
+                    nailTexture.src = cropCanvas.toDataURL();
+                    statusDiv.innerText = "✅ DISEÑO LISTO";
+                    statusDiv.className = "status-badge ready";
                 } else {
-                    status.innerText = "❌ No detecté una mano en la foto. Intenta otra.";
+                    statusDiv.innerText = "❌ IA: No veo la mano claramente. Prueba otra foto.";
                 }
-                
-                // Re-configuramos la IA para volver al modo cámara para el filtro en tiempo real
+                // Volvemos al modo cámara
                 hands.onResults(onLiveResults);
-            });
+            };
+            
+            hands.onResults(onPhotoResult);
         };
     };
 
-    // --- PASO 2: APLICAR EL FILTRO EN TIEMPO REAL CON ROTACIÓN Y ESCALA ---
+    // --- APLICACIÓN EN TIEMPO REAL ---
     function onLiveResults(results) {
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         
-        // Espejo para la cámara (translate -> scale -> translate back)
+        // Espejo
         canvasCtx.translate(canvasElement.width, 0);
         canvasCtx.scale(-1, 1);
-        
         canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-        if (results.multiHandLandmarks && extractedNailTextureImage) {
+        if (results.multiHandLandmarks && nailTexture) {
             for (const landmarks of results.multiHandLandmarks) {
-                // Puntos de las puntas (Tips) y las articulaciones justo debajo (Joints) para calcular rotación y escala
-                const fingerTips = [4, 8, 12, 16, 20]; // Pulgar, Índice, Medio, Anular, Meñique
-                const fingerJoints = [3, 7, 11, 15, 19]; 
+                // Puntas de los 5 dedos
+                const tips = [4, 8, 12, 16, 20];
+                const joints = [3, 7, 11, 15, 19];
 
-                fingerTips.forEach((tipIndex, i) => {
-                    const tip = landmarks[tipIndex];
-                    const joint = landmarks[fingerJoints[i]];
+                tips.forEach((tipIdx, i) => {
+                    const tip = landmarks[tipIdx];
+                    const joint = landmarks[joints[i]];
 
-                    // 1. Calcular Ángulo y Rotación (Usando atan2 para el vector)
-                    // (x, y) son coordenadas normalizadas (0 a 1). Calculamos el ángulo del dedo.
-                    const angle = Math.atan2(tip.y - joint.y, tip.x - joint.x) + Math.PI/2; 
+                    // Calculamos rotación basada en la inclinación del dedo
+                    const angle = Math.atan2(tip.y - joint.y, tip.x - joint.x) + Math.PI/2;
                     
-                    // 2. Calcular Escala (Pixel length)
-                    // Convertimos a píxeles para escalar la textura
-                    const pixelLength = Math.sqrt(
-                        Math.pow((tip.x - joint.x) * canvasElement.width, 2) + 
-                        Math.pow((tip.y - joint.y) * canvasElement.height, 2)
-                    );
-                    
-                    const x = tip.x * canvasElement.width;
-                    const y = tip.y * canvasElement.height;
+                    // Calculamos tamaño basado en la distancia entre puntos (perspectiva)
+                    const dist = Math.hypot((tip.x - joint.x) * 640, (tip.y - joint.y) * 480);
+                    const nailW = dist * 0.45;
+                    const nailH = nailW * 1.4;
 
                     canvasCtx.save();
-                    canvasCtx.translate(x, y); // Movemos el origen a la punta del dedo
-                    canvasCtx.rotate(angle); // Rotamos el canvas
+                    canvasCtx.translate(tip.x * 640, tip.y * 480);
+                    canvasCtx.rotate(angle);
                     
-                    // 3. Dibujamos el diseño recortado (El ancho es el largo escalado)
-                    const nWidth = pixelLength / 3.5; 
-                    const nHeight = nWidth * 1.5; // Mantenemos la forma alargada
-                    canvasCtx.drawImage(extractedNailTextureImage, -nWidth/2, -nHeight/2, nWidth, nHeight);
-                    
+                    // Dibujamos la textura con un poco de transparencia para que se mezcle mejor
+                    canvasCtx.globalAlpha = 0.9;
+                    canvasCtx.drawImage(nailTexture, -nailW/2, -nailH/1.5, nailW, nailH);
                     canvasCtx.restore();
                 });
             }
@@ -143,8 +174,8 @@
         canvasCtx.restore();
     }
 
-    // Iniciar cámara y ciclo de IA
     hands.onResults(onLiveResults);
+
     const camera = new Camera(videoElement, {
         onFrame: async () => { await hands.send({image: videoElement}); },
         width: 640, height: 480
